@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SSPD Receiver</title>
+<style>
+:root {
+  --bg: #050505;
+  --panel: rgba(18, 18, 18, 0.82);
+  --panel-strong: rgba(30, 30, 28, 0.92);
+  --line: rgba(255, 255, 255, 0.13);
+  --text: #f7f7f2;
+  --muted: #aaa79f;
+  --good: #35d07f;
+  --warn: #f4b740;
+  --bad: #ff5c5c;
+  --accent: #45c9b4;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+button {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font: inherit;
+  cursor: pointer;
+}
+button:hover { background: rgba(255, 255, 255, 0.13); }
+#stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,255,255,0.018) 1px, transparent 1px),
+    #020202;
+  background-size: 42px 42px;
+}
+#screen-stream {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+#screen-stream.ready { opacity: 1; }
+#screen-stream.fill { object-fit: fill; }
+#topbar {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: 14px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  backdrop-filter: blur(14px);
+  z-index: 20;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--warn);
+  box-shadow: 0 0 18px rgba(244, 183, 64, 0.65);
+  flex: 0 0 auto;
+}
+.status-dot.live {
+  background: var(--good);
+  box-shadow: 0 0 18px rgba(53, 208, 127, 0.65);
+}
+.status-dot.offline {
+  background: var(--bad);
+  box-shadow: 0 0 18px rgba(255, 92, 92, 0.65);
+}
+.title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+.title strong {
+  font-size: 14px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+#hud {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(74px, 1fr));
+  gap: 8px;
+  max-width: min(780px, calc(100vw - 32px));
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  backdrop-filter: blur(14px);
+  z-index: 18;
+}
+.metric {
+  min-height: 48px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+}
+.metric label {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+}
+.metric span {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#center-state {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 10;
+}
+.state-box {
+  width: min(420px, calc(100vw - 40px));
+  padding: 24px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+}
+.loader {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 16px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--accent);
+  animation: spin 850ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-box h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+.state-box p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.hidden { display: none !important; }
+.quiet #topbar,
+.quiet #hud { opacity: 0; transform: translateY(-4px); pointer-events: none; }
+@media (max-width: 760px) {
+  #topbar { left: 10px; right: 10px; top: 10px; }
+  .actions button { min-width: 36px; padding: 0 9px; }
+  #hud {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    max-width: none;
+  }
+  .metric { min-height: 44px; }
+}
+</style>
+</head>
+<body>
+<main id="stage">
+  <img id="screen-stream" alt="Live monitor stream" decoding="async">
+</main>
+
+<header id="topbar">
+  <div class="brand">
+    <span id="status-dot" class="status-dot"></span>
+    <div class="title">
+      <strong>SSPD Live Receiver</strong>
+      <span id="status-text">Connecting to local transmitter</span>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="admin-btn" title="Open the control panel">Admin</button>
+    <button id="fit-btn" title="Switch between contain and fill">Fit</button>
+    <button id="fullscreen-btn" title="Toggle fullscreen">Fullscreen</button>
+  </div>
+</header>
+
+<section id="hud">
+  <div class="metric"><label>Protocol</label><span id="hud-proto">MJPEG</span></div>
+  <div class="metric"><label>FPS</label><span id="hud-fps">-</span></div>
+  <div class="metric"><label>RTT</label><span id="hud-rtt">- ms</span></div>
+  <div class="metric"><label>Quality</label><span id="hud-quality">-</span></div>
+  <div class="metric"><label>Monitor</label><span id="hud-mon">-</span></div>
+  <div class="metric"><label>Mode</label><span id="hud-scale">Contain</span></div>
+</section>
+
+<section id="center-state">
+  <div class="state-box">
+    <div class="loader"></div>
+    <h1 id="state-title">Starting live stream</h1>
+    <p id="state-copy">Waiting for the transmitter to publish the next monitor frame.</p>
+  </div>
+</section>
+
+<script>
+const img = document.getElementById('screen-stream');
+const state = document.getElementById('center-state');
+const stateTitle = document.getElementById('state-title');
+const stateCopy = document.getElementById('state-copy');
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+
+let settings = {
+  protocol: 'mjpeg',
+  monitor: 1,
+  res: 'Native',
+  fps: 60,
+  quality: 92,
+  scale_mode: 'contain',
+  auto_sync: true,
+  refresh_counter: 0,
+  clear_cache_cmd: 0,
+  server_active: true
+};
+let lastRefreshCounter = null;
+let lastClearCacheCmd = null;
+let streamGeneration = 0;
+let reconnectDelay = 600;
+let quietTimer = null;
+let rttSum = 0;
+let rttCount = 0;
+let lastFeedback = 0;
+
+function setState(kind, title, copy) {
+  statusDot.className = 'status-dot ' + (kind || '');
+  statusText.textContent = copy;
+  stateTitle.textContent = title;
+  stateCopy.textContent = copy;
+  state.classList.toggle('hidden', kind === 'live');
+  img.classList.toggle('ready', kind === 'live');
+}
+
+function openStream(reason) {
+  streamGeneration += 1;
+  const gen = streamGeneration;
+  setState('', 'Opening live stream', reason || 'Connecting to the transmitter.');
+  img.classList.remove('ready');
+  img.onload = () => {
+    if (gen !== streamGeneration) return;
+    reconnectDelay = 600;
+    setState('live', 'Live', 'Receiving monitor ' + settings.monitor + ' over LAN.');
+  };
+  img.onerror = () => {
+    if (gen !== streamGeneration) return;
+    setState('offline', 'Reconnecting', 'Stream dropped. Reopening the LAN feed.');
+    window.setTimeout(() => openStream('Recovering the MJPEG session.'), reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 1.45, 6000);
+  };
+  img.src = '/video_feed?monitor=' + encodeURIComponent(settings.monitor) + '&_=' + Date.now();
+}
+
+async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(url + ' returned ' + res.status);
+  return res.json();
+}
+
+async function syncSettings() {
+  try {
+    const s = await fetchJson('/api/current_settings?_=' + Date.now());
+    const streamRelevant =
+      s.monitor !== settings.monitor ||
+      s.res !== settings.res ||
+      s.protocol !== settings.protocol ||
+      s.server_active !== settings.server_active;
+    settings = Object.assign(settings, s);
+
+    document.getElementById('hud-proto').textContent = settings.protocol.toUpperCase();
+    document.getElementById('hud-fps').textContent = String(settings.fps);
+    document.getElementById('hud-quality').textContent = settings.quality + '%';
+    document.getElementById('hud-mon').textContent = String(settings.monitor);
+    document.getElementById('hud-scale').textContent = settings.scale_mode === 'fill' ? 'Fill' : 'Contain';
+    img.classList.toggle('fill', settings.scale_mode === 'fill');
+
+    if (lastClearCacheCmd === null) lastClearCacheCmd = settings.clear_cache_cmd;
+    if (lastRefreshCounter === null) lastRefreshCounter = settings.refresh_counter;
+
+    if (settings.clear_cache_cmd > lastClearCacheCmd) {
+      lastClearCacheCmd = settings.clear_cache_cmd;
+      await clearLocalCache();
+      location.reload();
+      return;
+    }
+    if (settings.refresh_counter > lastRefreshCounter || streamRelevant) {
+      lastRefreshCounter = settings.refresh_counter;
+      if (settings.auto_sync) requestResolutionSync();
+      openStream('Applying transmitter settings.');
+    }
+    if (!settings.server_active) {
+      setState('offline', 'Streaming is paused', 'Start streaming from the admin panel or tray menu.');
+    }
+  } catch (err) {
+    setState('offline', 'Transmitter offline', 'Waiting for the local server to return.');
+  } finally {
+    window.setTimeout(syncSettings, 900);
+  }
+}
+
+async function requestResolutionSync() {
+  try {
+    await fetch('/api/set_resolution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ width: window.innerWidth, height: window.innerHeight, monitor: settings.monitor })
+    });
+  } catch (_) {}
+}
+
+async function clearLocalCache() {
+  try {
+    if ('caches' in window) {
+      for (const key of await caches.keys()) await caches.delete(key);
+    }
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch (_) {}
+}
+
+async function heartbeat() {
+  const started = performance.now();
+  try {
+    const res = await fetch('/api/ping?_=' + Date.now());
+    if (res.ok) {
+      const rtt = performance.now() - started;
+      rttSum += rtt;
+      rttCount += 1;
+      document.getElementById('hud-rtt').textContent = Math.round(rtt) + ' ms';
+      const now = Date.now();
+      if (now - lastFeedback > 1800 && rttCount > 0) {
+        const avg = rttSum / rttCount;
+        rttSum = 0;
+        rttCount = 0;
+        lastFeedback = now;
+        fetch('/api/latency_feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rtt: avg })
+        }).catch(() => {});
+      }
+    }
+  } catch (_) {}
+  window.setTimeout(heartbeat, 1200);
+}
+
+function toggleQuietSoon() {
+  document.body.classList.remove('quiet');
+  clearTimeout(quietTimer);
+  quietTimer = window.setTimeout(() => document.body.classList.add('quiet'), 3500);
+}
+
+document.addEventListener('mousemove', toggleQuietSoon);
+document.addEventListener('keydown', toggleQuietSoon);
+document.getElementById('fullscreen-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+  else document.exitFullscreen().catch(() => {});
+});
+document.getElementById('fit-btn').addEventListener('click', async () => {
+  settings.scale_mode = settings.scale_mode === 'fill' ? 'contain' : 'fill';
+  img.classList.toggle('fill', settings.scale_mode === 'fill');
+  await fetch('/api/update_settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scale_mode: settings.scale_mode })
+  }).catch(() => {});
+});
+document.getElementById('admin-btn').addEventListener('click', () => {
+  window.open('/admin', '_blank', 'noopener,noreferrer');
+});
+window.addEventListener('resize', () => {
+  clearTimeout(window.__resizeTimer);
+  window.__resizeTimer = window.setTimeout(requestResolutionSync, 1200);
+});
+
+if ('wakeLock' in navigator) {
+  navigator.wakeLock.request('screen').catch(() => {});
+}
+toggleQuietSoon();
+openStream('Connecting to the transmitter.');
+syncSettings();
+heartbeat();
+</script>
+</body>
+</html>

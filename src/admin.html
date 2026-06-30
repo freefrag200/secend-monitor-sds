@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSPD Control Panel</title>
+<style>
+:root {
+  --bg: #10100f;
+  --surface: #191917;
+  --surface-2: #22221f;
+  --line: #35342f;
+  --text: #f8f7f0;
+  --muted: #aaa79d;
+  --accent: #45c9b4;
+  --good: #35d07f;
+  --warn: #f4b740;
+  --bad: #ff5c5c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button, input, select {
+  font: inherit;
+}
+button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #2a2a26;
+  color: var(--text);
+  padding: 0 13px;
+  cursor: pointer;
+}
+button:hover { background: #33332e; }
+button.primary {
+  background: var(--accent);
+  color: #07110f;
+  border-color: transparent;
+  font-weight: 700;
+}
+button.danger {
+  background: #4b2020;
+  border-color: #7d3030;
+}
+button.good {
+  background: #1f4b34;
+  border-color: #2c7a50;
+}
+select, input[type="number"] {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #11110f;
+  color: var(--text);
+  padding: 0 10px;
+}
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.shell {
+  width: min(1180px, calc(100vw - 28px));
+  margin: 0 auto;
+  padding: 22px 0 34px;
+}
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.brand h1 {
+  margin: 0 0 4px;
+  font-size: clamp(24px, 4vw, 38px);
+  letter-spacing: 0;
+}
+.brand p {
+  margin: 0;
+  color: var(--muted);
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--warn);
+}
+.dot.live { background: var(--good); box-shadow: 0 0 18px rgba(53,208,127,.55); }
+.dot.offline { background: var(--bad); box-shadow: 0 0 18px rgba(255,92,92,.55); }
+.grid {
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: 14px;
+}
+.section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+.section h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.field {
+  display: grid;
+  gap: 7px;
+}
+.field label {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.range-row {
+  display: grid;
+  grid-template-columns: 1fr 64px;
+  gap: 10px;
+  align-items: center;
+}
+.toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.stat {
+  min-height: 64px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+.stat label {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 6px;
+}
+.stat span {
+  display: block;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.links {
+  display: grid;
+  gap: 8px;
+}
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.link-row code {
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.monitor-list {
+  display: grid;
+  gap: 8px;
+}
+.monitor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.monitor strong { font-size: 14px; }
+.monitor span { color: var(--muted); }
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  max-width: min(380px, calc(100vw - 32px));
+  padding: 12px 14px;
+  background: #11110f;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+@media (max-width: 880px) {
+  .top { align-items: flex-start; flex-direction: column; }
+  .grid { grid-template-columns: 1fr; }
+  .settings-grid, .toggles, .stat-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <h1>SSPD Control Panel</h1>
+      <p>Local monitor streaming tuned for smooth LAN playback.</p>
+    </div>
+    <div class="status">
+      <span id="state-dot" class="dot"></span>
+      <strong id="state-label">Connecting</strong>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="section">
+      <h2>Stream Settings</h2>
+      <div class="settings-grid">
+        <div class="field">
+          <label for="monitor">Monitor</label>
+          <select id="monitor"></select>
+        </div>
+        <div class="field">
+          <label for="resolution">Resolution</label>
+          <select id="resolution">
+            <option>Native</option>
+            <option>3840x2160</option>
+            <option>2560x1440</option>
+            <option>1920x1080</option>
+            <option>1600x900</option>
+            <option>1280x720</option>
+            <option>1024x768</option>
+            <option>800x600</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="engine">Capture Engine</label>
+          <select id="engine">
+            <option value="auto">Auto</option>
+            <option value="mss">MSS compatible</option>
+            <option value="dxcam">DXcam high FPS</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="scale">Client Scale</label>
+          <select id="scale">
+            <option value="contain">Contain aspect</option>
+            <option value="fill">Fill stretch</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="quality">JPEG Quality</label>
+          <div class="range-row">
+            <input id="quality" type="range" min="35" max="100" step="1">
+            <input id="quality-num" type="number" min="35" max="100" step="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="fps">Max FPS</label>
+          <div class="range-row">
+            <input id="fps" type="range" min="10" max="120" step="1">
+            <input id="fps-num" type="number" min="10" max="120" step="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="bitrate">Bitrate Target Mbps</label>
+          <div class="range-row">
+            <input id="bitrate" type="range" min="1" max="200" step="1">
+            <input id="bitrate-num" type="number" min="1" max="200" step="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="protocol">Protocol</label>
+          <select id="protocol">
+            <option value="mjpeg">MJPEG low-latency LAN</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="toggles">
+        <label class="toggle">Adaptive quality <input id="adaptive" type="checkbox"></label>
+        <label class="toggle">Auto-sync client resolution <input id="auto-sync" type="checkbox"></label>
+      </div>
+
+      <div class="actions">
+        <button id="apply" class="primary">Apply Settings</button>
+        <button id="toggle-stream" class="good">Start Streaming</button>
+        <button id="refresh">Refresh Receivers</button>
+        <button id="clear-cache" class="danger">Clear Receiver Cache</button>
+        <button id="open-receiver">Open Receiver</button>
+      </div>
+    </section>
+
+    <aside class="section">
+      <h2>Live Status</h2>
+      <div class="stat-grid">
+        <div class="stat"><label>Protocol</label><span id="stat-protocol">-</span></div>
+        <div class="stat"><label>FPS</label><span id="stat-fps">-</span></div>
+        <div class="stat"><label>Quality</label><span id="stat-quality">-</span></div>
+        <div class="stat"><label>Monitor</label><span id="stat-monitor">-</span></div>
+      </div>
+    </aside>
+
+    <section class="section">
+      <h2>Receiver Links</h2>
+      <div id="links" class="links"></div>
+    </section>
+
+    <section class="section">
+      <h2>Detected Monitors</h2>
+      <div id="monitors" class="monitor-list"></div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const ids = (name) => document.getElementById(name);
+let settings = null;
+let debounce = null;
+let applyingRemote = false;
+
+function toast(message) {
+  const el = ids('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(el.__timer);
+  el.__timer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  const text = await res.text();
+  let body = {};
+  try { body = text ? JSON.parse(text) : {}; } catch (_) {}
+  if (!res.ok) throw new Error(body.message || path + ' returned ' + res.status);
+  return body;
+}
+
+function pairRange(rangeId, numId) {
+  const range = ids(rangeId);
+  const num = ids(numId);
+  range.addEventListener('input', () => { num.value = range.value; scheduleApply(); });
+  num.addEventListener('input', () => { range.value = num.value; scheduleApply(); });
+}
+
+pairRange('quality', 'quality-num');
+pairRange('fps', 'fps-num');
+pairRange('bitrate', 'bitrate-num');
+
+['monitor', 'resolution', 'engine', 'scale', 'protocol', 'adaptive', 'auto-sync'].forEach((id) => {
+  ids(id).addEventListener('change', scheduleApply);
+});
+
+function readForm() {
+  return {
+    protocol: ids('protocol').value,
+    monitor: Number(ids('monitor').value || 1),
+    res: ids('resolution').value,
+    quality: Number(ids('quality-num').value || 92),
+    fps: Number(ids('fps-num').value || 60),
+    bitrate: Number(ids('bitrate-num').value || 20),
+    engine: ids('engine').value,
+    scale_mode: ids('scale').value,
+    auto_sync: ids('auto-sync').checked,
+    adaptive_quality: ids('adaptive').checked
+  };
+}
+
+function scheduleApply() {
+  if (applyingRemote) return;
+  clearTimeout(debounce);
+  debounce = setTimeout(applySettings, 450);
+}
+
+async function applySettings() {
+  try {
+    const body = await api('/api/update_settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(readForm())
+    });
+    settings = body.settings;
+    renderSettings(settings);
+    toast('Settings applied');
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+function renderSettings(s) {
+  applyingRemote = true;
+  ids('protocol').value = s.protocol;
+  ids('monitor').value = String(s.monitor);
+  ids('resolution').value = s.res;
+  ids('engine').value = s.engine;
+  ids('scale').value = s.scale_mode;
+  ids('quality').value = s.quality;
+  ids('quality-num').value = s.quality;
+  ids('fps').value = s.fps;
+  ids('fps-num').value = s.fps;
+  ids('bitrate').value = s.bitrate;
+  ids('bitrate-num').value = s.bitrate;
+  ids('adaptive').checked = Boolean(s.adaptive_quality);
+  ids('auto-sync').checked = Boolean(s.auto_sync);
+  ids('stat-protocol').textContent = s.protocol.toUpperCase();
+  ids('stat-fps').textContent = s.fps;
+  ids('stat-quality').textContent = s.quality + '%';
+  ids('stat-monitor').textContent = s.monitor;
+  const live = Boolean(s.server_active);
+  ids('state-dot').className = 'dot ' + (live ? 'live' : 'offline');
+  ids('state-label').textContent = live ? 'Streaming live' : 'Streaming paused';
+  ids('toggle-stream').textContent = live ? 'Pause Streaming' : 'Start Streaming';
+  ids('toggle-stream').className = live ? 'danger' : 'good';
+  applyingRemote = false;
+}
+
+async function loadMonitors() {
+  try {
+    const list = await api('/api/monitors');
+    const select = ids('monitor');
+    select.innerHTML = '';
+    const panel = ids('monitors');
+    panel.innerHTML = '';
+    if (!list.length) {
+      select.innerHTML = '<option value="1">Monitor 1</option>';
+      panel.innerHTML = '<div class="monitor"><strong>No monitor data yet</strong><span>Capture will retry.</span></div>';
+      return;
+    }
+    for (const mon of list) {
+      const opt = document.createElement('option');
+      opt.value = mon.id;
+      opt.textContent = 'Monitor ' + mon.id + ' - ' + mon.width + 'x' + mon.height;
+      select.appendChild(opt);
+      const row = document.createElement('div');
+      row.className = 'monitor';
+      row.innerHTML = '<strong>Monitor ' + mon.id + '</strong><span>' + mon.width + 'x' + mon.height + '</span>';
+      panel.appendChild(row);
+    }
+  } catch (err) {
+    toast('Could not load monitors');
+  }
+}
+
+function renderLinks() {
+  const host = location.hostname || '127.0.0.1';
+  const port = location.port || '5000';
+  const links = [
+    'http://' + host + ':' + port + '/',
+    'http://' + host + ':' + port + '/admin',
+    'http://sspd-rs.local:' + port + '/'
+  ];
+  ids('links').innerHTML = '';
+  for (const link of links) {
+    const row = document.createElement('div');
+    row.className = 'link-row';
+    row.innerHTML = '<code>' + link + '</code><button>Copy</button>';
+    row.querySelector('button').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(link); toast('Link copied'); }
+      catch (_) { toast(link); }
+    });
+    ids('links').appendChild(row);
+  }
+}
+
+async function loadNetworkLinks() {
+  try {
+    const data = await api('/api/network');
+    const combined = []
+      .concat(data.receiver_links || [])
+      .concat(data.admin_links || []);
+    const unique = Array.from(new Set(combined));
+    if (!unique.length) {
+      renderLinks();
+      return;
+    }
+    ids('links').innerHTML = '';
+    for (const link of unique) {
+      const row = document.createElement('div');
+      row.className = 'link-row';
+      row.innerHTML = '<code>' + link + '</code><button>Copy</button>';
+      row.querySelector('button').addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(link); toast('Link copied'); }
+        catch (_) { toast(link); }
+      });
+      ids('links').appendChild(row);
+    }
+  } catch (_) {
+    renderLinks();
+  }
+}
+
+async function poll() {
+  try {
+    const s = await api('/api/current_settings?_=' + Date.now());
+    settings = s;
+    renderSettings(s);
+  } catch (err) {
+    ids('state-dot').className = 'dot offline';
+    ids('state-label').textContent = 'Transmitter offline';
+  } finally {
+    setTimeout(poll, 1100);
+  }
+}
+
+ids('apply').addEventListener('click', applySettings);
+ids('toggle-stream').addEventListener('click', async () => {
+  try {
+    await api('/api/toggle_server', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: !(settings && settings.server_active) })
+    });
+    toast('Streaming state updated');
+    poll();
+  } catch (err) { toast(err.message); }
+});
+ids('refresh').addEventListener('click', async () => {
+  try { await api('/api/refresh_client', { method: 'POST' }); toast('Receivers refreshed'); }
+  catch (err) { toast(err.message); }
+});
+ids('clear-cache').addEventListener('click', async () => {
+  try { await api('/api/clear_cache', { method: 'POST' }); toast('Receiver cache clear requested'); }
+  catch (err) { toast(err.message); }
+});
+ids('open-receiver').addEventListener('click', () => window.open('/', '_blank', 'noopener,noreferrer'));
+
+loadNetworkLinks();
+loadMonitors().then(poll);
+</script>
+</body>
+</html>
